@@ -45,6 +45,7 @@ body {
   align-items: center;
   padding: 1rem 2rem;
   background-color: var(--bg-app);
+  transition: background-color 0.2s;
 }
 
 .app-main-content {
@@ -62,6 +63,7 @@ input, textarea, select {
   border-radius: 6px;
   background-color: var(--bg-app);
   color: var(--text-main);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 /* --- Unified Add/Search Input --- */
@@ -74,7 +76,7 @@ input, textarea, select {
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.75rem;
-  transition: border-color 0.15s;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .unified-input-wrapper:focus-within {
@@ -87,6 +89,7 @@ input, textarea, select {
   font-weight: 600;
   line-height: 1;
   flex-shrink: 0;
+  user-select: none;
 }
 
 .unified-input {
@@ -130,6 +133,7 @@ input, textarea, select {
   color: var(--text-main);
   border-radius: 20px;
   cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .filter-btn.active {
@@ -150,10 +154,12 @@ input, textarea, select {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .task-item.expanded {
   border-color: var(--primary);
+  transition: border-color 0.2s;
 }
 
 .task-item-main {
@@ -163,7 +169,7 @@ input, textarea, select {
   padding: 1rem 1.5rem;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.15s;
+  transition: background-color 0.2s;
 }
 
 .task-item-main:hover {
@@ -230,6 +236,7 @@ input, textarea, select {
   flex-direction: column;
   gap: 0.75rem;
   animation: slideDown 0.15s ease-out;
+  transition: border-color 0.2s;
 }
 
 @keyframes slideDown {
