@@ -1,37 +1,35 @@
-import { useEffect, useState,useMemo } from "react"
-import type { TaskStatus,  Task } from "../types";
-import { storage } from "./storage";
+import {useMemo } from "react"
+import type { TaskStatus, AddTaskPayload, UpdateTaskPayload } from "../types";
+import { addTask, deleteTask, setSearchQuery, setStatusFilter, updateTask } from "../features/todo/todoSlice";
+import { useAppDispatch, useAppSelector } from "../store";
 
 export const useTasks = () =>{
-    const [tasks,setTasks] = useState<Task[]>(()=>storage.getTasks());
-    const [statusFilter, setStatusFilter] = useState<TaskStatus | 'All'>('All');
-    const [searchQuery,setSearchQuery]=useState('');
+    const tasks = useAppSelector((state) => state.todos.tasks);
+    const statusFilter = useAppSelector((state) => state.todos.statusFilter);
+    const searchQuery = useAppSelector((state) => state.todos.searchQuery);
+    
+    const dispatch = useAppDispatch();
 
-    useEffect(()=>{
-        storage.saveTasks(tasks);
-    },[tasks])
 
-    const addTask =(title:string,description?:string,priority:Task['priority'] = 'Medium',dueDate?: string)=>{
-        const newTask: Task ={
-            id:crypto.randomUUID(),
-            title,
-            description,
-            status:'Pending',
-            priority,
-            dueDate,
-            createdAt:new Date().toISOString(),
-        };
-        setTasks((prev)=>[...prev,newTask])
+    const handleAddTask =(payload:AddTaskPayload)=>{
+        dispatch(addTask(payload))
     }
 
-    const updateTask = (id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => {
-        setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, ...updates } : task)));
+    const handleUpdateTask = (payload:UpdateTaskPayload) => {
+        dispatch(updateTask(payload))
     };
 
 
-    const deleteTask = (id: string) => {
-        setTasks((prev) => prev.filter((task) => task.id !== id));
+    const handleDeleteTask = (payload: string) => {
+        dispatch(deleteTask(payload))
     };
+
+    const handleSetSearchQuery=(payload:string) =>{
+        dispatch(setSearchQuery(payload))
+    }
+    const handleSetStatusFilter=(payload:TaskStatus|'All') =>{
+        dispatch(setStatusFilter(payload))
+    }
 
     const filteredTasks = useMemo(() => {
         return tasks
@@ -56,11 +54,11 @@ export const useTasks = () =>{
         tasks: filteredTasks,
         statusCounts,
         statusFilter,
-        setStatusFilter,
+        handleSetStatusFilter,
         searchQuery,
-        setSearchQuery,
-        addTask,
-        updateTask,
-        deleteTask,
+        handleSetSearchQuery,
+        handleAddTask,
+        handleUpdateTask,
+        handleDeleteTask,
     };
 }

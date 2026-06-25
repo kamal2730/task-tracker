@@ -9,13 +9,13 @@ export default function App() {
   const {
     tasks,
     statusFilter,
-    setStatusFilter,
+    handleSetStatusFilter,
     searchQuery,
-    setSearchQuery,
+    handleSetSearchQuery,
     statusCounts,
-    addTask,
-    updateTask,
-    deleteTask,
+    handleAddTask,
+    handleUpdateTask,
+    handleDeleteTask,
   } = useTasks();
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => storage.getTheme());
@@ -39,13 +39,13 @@ export default function App() {
           <TaskList
             tasks={tasks}
             statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
+            onStatusFilterChange={handleSetStatusFilter}
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onSearchChange={handleSetSearchQuery}
             statusCounts={statusCounts}
-            onAddTask={addTask}
-            onUpdateTask={updateTask}
-            onDeleteTask={deleteTask}
+            onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
           />
         </section>
       </main>

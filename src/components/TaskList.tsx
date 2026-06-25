@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTransition, animated } from 'react-spring';
-import type { Task, TaskStatus, TaskPriority } from '../types';
+import type { Task, TaskStatus, AddTaskPayload, UpdateTaskPayload } from '../types';
 import TaskItem from './TaskItem';
 
 interface TaskListProps {
@@ -10,8 +10,8 @@ interface TaskListProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   statusCounts: Record<string, number>;
-  onAddTask: (title: string, description?: string, priority?: TaskPriority, dueDate?: string) => void;
-  onUpdateTask: (id: string, updates: Partial<Task>) => void;
+  onAddTask: (payload: AddTaskPayload) => void;
+  onUpdateTask: (payload: UpdateTaskPayload) => void;
   onDeleteTask: (id: string) => void;
 }
 
@@ -37,7 +37,7 @@ export default function TaskList({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim()) {
-      onAddTask(inputValue.trim());
+      onAddTask({ title: inputValue.trim() });
       setInputValue('');
       onSearchChange('');
     }
@@ -88,7 +88,7 @@ export default function TaskList({
             <TaskItem
               key={task.id}
               task={task}
-              onUpdate={onUpdateTask}
+              onUpdate={(id, updates) => onUpdateTask({ id, updates })}
               onDelete={onDeleteTask}
             />
           </animated.div>
