@@ -1,27 +1,29 @@
 import {useMemo } from "react"
 import type { TaskStatus, AddTaskPayload, UpdateTaskPayload } from "../types";
-import { addTask, deleteTask, setSearchQuery, setStatusFilter, updateTask } from "../features/todo/todoSlice";
+import { addTaskAsync, deleteTaskAsync, setSearchQuery, setStatusFilter, updateTaskAsync } from "../features/todo/todoSlice";
 import { useAppDispatch, useAppSelector } from "../store";
 
 export const useTasks = () =>{
     const tasks = useAppSelector((state) => state.todos.tasks);
     const statusFilter = useAppSelector((state) => state.todos.statusFilter);
     const searchQuery = useAppSelector((state) => state.todos.searchQuery);
-    
+    const loading = useAppSelector((state) => state.todos.loading);
+    const error = useAppSelector((state) => state.todos.error);
+
     const dispatch = useAppDispatch();
 
 
     const handleAddTask =(payload:AddTaskPayload)=>{
-        dispatch(addTask(payload))
+        dispatch(addTaskAsync(payload))
     }
 
     const handleUpdateTask = (payload:UpdateTaskPayload) => {
-        dispatch(updateTask(payload))
+        dispatch(updateTaskAsync(payload))
     };
 
 
     const handleDeleteTask = (payload: string) => {
-        dispatch(deleteTask(payload))
+        dispatch(deleteTaskAsync(payload))
     };
 
     const handleSetSearchQuery=(payload:string) =>{
@@ -60,5 +62,7 @@ export const useTasks = () =>{
         handleAddTask,
         handleUpdateTask,
         handleDeleteTask,
+        loading,
+        error,
     };
 }

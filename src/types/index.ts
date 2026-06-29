@@ -14,6 +14,8 @@ export interface TodoState {
     tasks: Task[];
     statusFilter:TaskStatus|"All";
     searchQuery:string;
+    loading: boolean;
+    error: string | null;
 }
 
 export interface AddTaskPayload {

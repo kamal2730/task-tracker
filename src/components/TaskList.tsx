@@ -13,6 +13,8 @@ interface TaskListProps {
   onAddTask: (payload: AddTaskPayload) => void;
   onUpdateTask: (payload: UpdateTaskPayload) => void;
   onDeleteTask: (id: string) => void;
+  loading: boolean;
+  error: string | null;
 }
 
 export default function TaskList({
@@ -25,6 +27,8 @@ export default function TaskList({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  loading,
+  error,
 }: TaskListProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -82,6 +86,18 @@ export default function TaskList({
         </div>
       </div>
 
+      {error && (
+        <div className="error-banner">
+          <span>{error}</span>
+          <button onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      )}
+
+      {loading && tasks.length === 0 && (
+        <div className="loading-spinner">Loading tasks...</div>
+      )}
+
+      {!loading && (
       <div className="task-items-grid">
         {transitions((style, task) => (
           <animated.div style={style}>
@@ -103,6 +119,7 @@ export default function TaskList({
           </p>
         )}
       </div>
+      )}
     </div>
   );
 }

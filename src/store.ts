@@ -1,7 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import todoReducer from "./features/todo/todoSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { storage } from "./utils/storage";
 
 
 const store = configureStore({
@@ -9,11 +8,6 @@ const store = configureStore({
         todos:todoReducer
     }
 });
-
-store.subscribe(()=>{
-    const state=store.getState()
-    storage.saveTasks(state.todos.tasks)
-})
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

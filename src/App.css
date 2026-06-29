@@ -287,6 +287,47 @@ input, textarea, select {
   padding-top: 0.5rem;
 }
 
+.loading-spinner {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 3rem 1rem;
+  font-size: 0.95rem;
+}
+
+.error-banner {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.error-banner button {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+body.dark .error-banner {
+  background: #3b1010;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+body.dark .error-banner button {
+  background: #dc2626;
+}
+
 .no-tasks-message {
   text-align: center;
   color: var(--text-muted);
