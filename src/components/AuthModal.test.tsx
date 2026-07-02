@@ -54,11 +54,27 @@ describe('AuthModal', () => {
     expect(screen.getByText('Password is required')).toBeInTheDocument()
   })
 
+  it('should show validation error for invalid email on login', () => {
+    renderWithStore()
+    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'not-an-email' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }))
+    expect(screen.getByText('Please enter a valid email')).toBeInTheDocument()
+  })
+
   it('should show validation error for missing name on register', () => {
     renderWithStore()
     fireEvent.click(screen.getByText('Register here'))
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }))
     expect(screen.getByText('Name is required')).toBeInTheDocument()
+  })
+
+  it('should show validation error for invalid email on register', () => {
+    renderWithStore()
+    fireEvent.click(screen.getByText('Register here'))
+    fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Test' } })
+    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'bad' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }))
+    expect(screen.getByText('Please enter a valid email')).toBeInTheDocument()
   })
 
   it('should show validation error for short password on register', () => {

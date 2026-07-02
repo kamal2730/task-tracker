@@ -23,13 +23,18 @@ export default function AuthModal() {
     e.preventDefault();
     setValidationError("");
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (mode === "register") {
       if (!name.trim()) return setValidationError("Name is required");
+      if (!email.trim()) return setValidationError("Email is required");
+      if (!emailRegex.test(email.trim())) return setValidationError("Please enter a valid email");
       if (password.length < 4) return setValidationError("Password must be at least 4 characters");
       if (password !== confirmPassword) return setValidationError("Passwords do not match");
       dispatch(registerAsync({ name: name.trim(), email: email.trim(), password }));
     } else {
       if (!email.trim()) return setValidationError("Email is required");
+      if (!emailRegex.test(email.trim())) return setValidationError("Please enter a valid email");
       if (!password) return setValidationError("Password is required");
       dispatch(loginAsync({ email: email.trim(), password }));
     }
@@ -42,7 +47,7 @@ export default function AuthModal() {
       <div className="auth-modal">
         <h2>{mode === "login" ? "Sign In" : "Create Account"}</h2>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {mode === "register" && (
             <div className="auth-field">
               <input
