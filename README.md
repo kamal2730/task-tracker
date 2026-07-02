@@ -49,7 +49,8 @@ pytest
 ### Frontend
 
 ```bash
-npm test
+npm test           # single run
+npm run test:watch # watch mode
 ```
 
 ## Architecture

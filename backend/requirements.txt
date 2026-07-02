@@ -4,3 +4,5 @@ uvicorn
 python-dotenv
 bcrypt
 python-jose[cryptography]
+pytest
+httpx
