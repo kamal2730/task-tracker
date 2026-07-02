@@ -2,6 +2,7 @@ import {useMemo } from "react"
 import type { TaskStatus, AddTaskPayload, UpdateTaskPayload } from "../types";
 import { addTaskAsync, deleteTaskAsync, setSearchQuery, setStatusFilter, updateTaskAsync } from "../features/todo/todoSlice";
 import { useAppDispatch, useAppSelector } from "../store";
+import { showToast } from "./toast";
 
 export const useTasks = () =>{
     const tasks = useAppSelector((state) => state.todos.tasks);
@@ -13,17 +14,32 @@ export const useTasks = () =>{
     const dispatch = useAppDispatch();
 
 
-    const handleAddTask =(payload:AddTaskPayload)=>{
-        dispatch(addTaskAsync(payload))
+    const handleAddTask = async (payload: AddTaskPayload) => {
+        try {
+            await dispatch(addTaskAsync(payload)).unwrap();
+            showToast("Task added", "success");
+        } catch (err) {
+            showToast((err as { message?: string })?.message ?? "An error occurred", "error");
+        }
     }
 
-    const handleUpdateTask = (payload:UpdateTaskPayload) => {
-        dispatch(updateTaskAsync(payload))
+    const handleUpdateTask = async (payload: UpdateTaskPayload) => {
+        try {
+            await dispatch(updateTaskAsync(payload)).unwrap();
+            showToast("Task updated", "success");
+        } catch (err) {
+            showToast((err as { message?: string })?.message ?? "An error occurred", "error");
+        }
     };
 
 
-    const handleDeleteTask = (payload: string) => {
-        dispatch(deleteTaskAsync(payload))
+    const handleDeleteTask = async (payload: string) => {
+        try {
+            await dispatch(deleteTaskAsync(payload)).unwrap();
+            showToast("Task deleted", "success");
+        } catch (err) {
+            showToast((err as { message?: string })?.message ?? "An error occurred", "error");
+        }
     };
 
     const handleSetSearchQuery=(payload:string) =>{

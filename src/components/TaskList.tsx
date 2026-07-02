@@ -17,6 +17,19 @@ interface TaskListProps {
   error: string | null;
 }
 
+function SkeletonCard() {
+  return (
+    <div className="skeleton-card">
+      <div className="skeleton-row">
+        <div className="skeleton-badge" />
+        <div className="skeleton-line skeleton-line-title" />
+        <div className="skeleton-circle" />
+      </div>
+      <div className="skeleton-line skeleton-line-desc" />
+    </div>
+  );
+}
+
 export default function TaskList({
   tasks,
   statusFilter,
@@ -94,7 +107,11 @@ export default function TaskList({
       )}
 
       {loading && tasks.length === 0 && (
-        <div className="loading-spinner">Loading tasks...</div>
+        <div className="skeleton-container">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       )}
 
       {!loading && (
@@ -109,14 +126,19 @@ export default function TaskList({
             />
           </animated.div>
         ))}
-        {tasks.length === 0 && (
-          <p className="no-tasks-message">
-            {searchQuery
-              ? `No tasks matching "${searchQuery}"`
-              : statusFilter !== 'All'
-              ? `No tasks with status "${statusFilter}".`
-              : 'No tasks yet. Type above and press Enter to add one.'}
-          </p>
+        {tasks.length === 0 && !error && (
+          <div className="empty-state">
+            <span className="empty-state-icon">
+              {searchQuery ? "🔍" : statusFilter !== "All" ? "📋" : "📝"}
+            </span>
+            <p className="empty-state-text">
+              {searchQuery
+                ? `No tasks matching "${searchQuery}"`
+                : statusFilter !== 'All'
+                ? `No tasks with status "${statusFilter}"`
+                : 'No tasks yet. Create your first task by typing above and pressing Enter.'}
+            </p>
+          </div>
         )}
       </div>
       )}

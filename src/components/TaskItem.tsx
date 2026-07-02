@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Task, TaskStatus, TaskPriority } from '../types';
+import ConfirmDialog from './ConfirmDialog';
 
 interface TaskItemProps {
   task: Task;
@@ -39,6 +40,7 @@ export default function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
   const [editDescription, setEditDescription] = useState(task.description || '');
   const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority);
   const [editDueDate, setEditDueDate] = useState(task.dueDate || '');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (isExpanded) {
@@ -161,10 +163,18 @@ export default function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
 
           <div className="expanded-actions">
             <button type="button" className="btn-save" onClick={handleSave}>Save</button>
-            <button type="button" className="btn-delete" onClick={() => onDelete(task.id)}>Delete</button>
+            <button type="button" className="btn-delete" onClick={() => setShowConfirm(true)}>Delete</button>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${task.title}"?`}
+        onConfirm={() => { onDelete(task.id); setShowConfirm(false); }}
+        onCancel={() => setShowConfirm(false)}
+      />
     </div>
   );
 }

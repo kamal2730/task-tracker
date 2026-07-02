@@ -1,11 +1,13 @@
 import { configureStore } from "@reduxjs/toolkit";
 import todoReducer from "./features/todo/todoSlice";
+import authReducer from "./features/auth/authSlice";
 import { useDispatch, useSelector } from "react-redux";
 
 
 const store = configureStore({
     reducer:{
-        todos:todoReducer
+        todos: todoReducer,
+        auth: authReducer,
     }
 });
 

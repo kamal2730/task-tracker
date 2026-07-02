@@ -1,3 +1,6 @@
 fastapi[standard]
 sqlalchemy
 uvicorn
+python-dotenv
+bcrypt
+python-jose[cryptography]
