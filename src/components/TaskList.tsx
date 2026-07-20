@@ -1,14 +1,19 @@
 import { useState } from 'react';
 import { useTransition, animated } from 'react-spring';
-import type { Task, TaskStatus, AddTaskPayload, UpdateTaskPayload } from '../types';
+import type { Task, TaskStatus, TaskPriority, AddTaskPayload, UpdateTaskPayload } from '../types';
 import TaskItem from './TaskItem';
 
 interface TaskListProps {
   tasks: Task[];
   statusFilter: TaskStatus | 'All';
   onStatusFilterChange: (status: TaskStatus | 'All') => void;
+  priorityFilter: TaskPriority | 'All';
+  onPriorityFilterChange: (priority: TaskPriority | 'All') => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  sortBy: string;
+  sortOrder: string;
+  onSortChange: (sortBy: string, sortOrder: string) => void;
   statusCounts: Record<string, number>;
   onAddTask: (payload: AddTaskPayload) => void;
   onUpdateTask: (payload: UpdateTaskPayload) => void;
@@ -16,6 +21,17 @@ interface TaskListProps {
   loading: boolean;
   error: string | null;
 }
+
+const STATUS_OPTIONS: (TaskStatus | 'All')[] = ['All', 'Pending', 'In Progress', 'Done'];
+const PRIORITY_OPTIONS: (TaskPriority | 'All')[] = ['All', 'Low', 'Medium', 'High'];
+
+const SORT_OPTIONS = [
+  { label: 'Newest', sortBy: 'createdAt', sortOrder: 'desc' },
+  { label: 'Oldest', sortBy: 'createdAt', sortOrder: 'asc' },
+  { label: 'Due Date', sortBy: 'dueDate', sortOrder: 'asc' },
+  { label: 'Priority', sortBy: 'priority', sortOrder: 'desc' },
+  { label: 'Title A-Z', sortBy: 'title', sortOrder: 'asc' },
+];
 
 function SkeletonCard() {
   return (
@@ -34,8 +50,13 @@ export default function TaskList({
   tasks,
   statusFilter,
   onStatusFilterChange,
+  priorityFilter,
+  onPriorityFilterChange,
   searchQuery,
   onSearchChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
   statusCounts,
   onAddTask,
   onUpdateTask,
@@ -45,7 +66,7 @@ export default function TaskList({
 }: TaskListProps) {
   const [inputValue, setInputValue] = useState('');
 
-  const filterOptions: (TaskStatus | 'All')[] = ['All', 'Pending', 'In Progress', 'Done'];
+  const currentSort = SORT_OPTIONS.find((o) => o.sortBy === sortBy && o.sortOrder === sortOrder) ?? SORT_OPTIONS[0];
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -87,7 +108,7 @@ export default function TaskList({
 
       <div className="task-controls">
         <div className="filter-buttons">
-          {filterOptions.map((option) => (
+          {STATUS_OPTIONS.map((option) => (
             <button
               key={option}
               onClick={() => onStatusFilterChange(option)}
@@ -97,6 +118,31 @@ export default function TaskList({
             </button>
           ))}
         </div>
+        <div className="filter-buttons">
+          {PRIORITY_OPTIONS.map((option) => (
+            <button
+              key={option}
+              onClick={() => onPriorityFilterChange(option)}
+              className={`filter-btn ${priorityFilter === option ? 'active' : ''}`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        <select
+          className="sort-select"
+          value={`${currentSort.sortBy}-${currentSort.sortOrder}`}
+          onChange={(e) => {
+            const opt = SORT_OPTIONS.find((o) => `${o.sortBy}-${o.sortOrder}` === e.target.value);
+            if (opt) onSortChange(opt.sortBy, opt.sortOrder);
+          }}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={`${opt.sortBy}-${opt.sortOrder}`} value={`${opt.sortBy}-${opt.sortOrder}`}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && (

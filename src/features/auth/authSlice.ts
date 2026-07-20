@@ -1,21 +1,16 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { AuthState, LoginPayload, RegisterPayload } from "../../types";
-import { api } from "../../services/api";
+import { api, setAccessToken } from "../../services/api";
 
 function loadFromStorage() {
-  const token = localStorage.getItem("task_tracker_token");
   const user = localStorage.getItem("task_tracker_user");
-  return {
-    token: token || null,
-    user: user ? JSON.parse(user) : null,
-  };
+  return { user: user ? JSON.parse(user) : null };
 }
 
-const { token, user } = loadFromStorage();
+const { user } = loadFromStorage();
 
 const initialState: AuthState = {
   user,
-  token,
   loading: false,
   error: null,
 };
@@ -24,9 +19,9 @@ export const loginAsync = createAsyncThunk(
   "auth/login",
   async (payload: LoginPayload) => {
     const data = await api.login(payload);
-    localStorage.setItem("task_tracker_token", data.access_token);
+    setAccessToken(data.access_token);
     localStorage.setItem("task_tracker_user", JSON.stringify(data.user));
-    return data;
+    return data.user;
   }
 );
 
@@ -34,24 +29,24 @@ export const registerAsync = createAsyncThunk(
   "auth/register",
   async (payload: RegisterPayload) => {
     const data = await api.register(payload);
-    localStorage.setItem("task_tracker_token", data.access_token);
+    setAccessToken(data.access_token);
     localStorage.setItem("task_tracker_user", JSON.stringify(data.user));
-    return data;
+    return data.user;
   }
 );
 
 export const checkAuth = createAsyncThunk(
   "auth/check",
-  async (_, { getState, rejectWithValue }) => {
-    const state = getState() as { auth: AuthState };
-    if (!state.auth.token) return rejectWithValue("No token");
+  async (_, { rejectWithValue }) => {
     try {
-      const user = await api.getProfile();
-      return user;
+      const data = await api.refresh();
+      setAccessToken(data.access_token);
+      localStorage.setItem("task_tracker_user", JSON.stringify(data.user));
+      return data.user;
     } catch {
-      localStorage.removeItem("task_tracker_token");
       localStorage.removeItem("task_tracker_user");
-      return rejectWithValue("Token expired");
+      setAccessToken(null);
+      return rejectWithValue("Session expired");
     }
   }
 );
@@ -62,9 +57,8 @@ const authSlice = createSlice({
   reducers: {
     logout(state) {
       state.user = null;
-      state.token = null;
       state.error = null;
-      localStorage.removeItem("task_tracker_token");
+      setAccessToken(null);
       localStorage.removeItem("task_tracker_user");
     },
     clearAuthError(state) {
@@ -79,8 +73,7 @@ const authSlice = createSlice({
       })
       .addCase(loginAsync.fulfilled, (state, action) => {
         state.loading = false;
-        state.token = action.payload.access_token;
-        state.user = action.payload.user;
+        state.user = action.payload;
       })
       .addCase(loginAsync.rejected, (state, action) => {
         state.loading = false;
@@ -92,8 +85,7 @@ const authSlice = createSlice({
       })
       .addCase(registerAsync.fulfilled, (state, action) => {
         state.loading = false;
-        state.token = action.payload.access_token;
-        state.user = action.payload.user;
+        state.user = action.payload;
       })
       .addCase(registerAsync.rejected, (state, action) => {
         state.loading = false;
@@ -104,7 +96,6 @@ const authSlice = createSlice({
       })
       .addCase(checkAuth.rejected, (state) => {
         state.user = null;
-        state.token = null;
       });
   },
 });

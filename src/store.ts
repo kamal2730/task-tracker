@@ -1,13 +1,21 @@
 import { configureStore } from "@reduxjs/toolkit";
 import todoReducer from "./features/todo/todoSlice";
 import authReducer from "./features/auth/authSlice";
+import usersReducer from "./features/users/usersSlice";
+import commentsReducer from "./features/comments/commentsSlice";
+import activityReducer from "./features/activity/activitySlice";
+import teamsReducer from "./features/teams/teamsSlice";
 import { useDispatch, useSelector } from "react-redux";
 
 
 const store = configureStore({
-    reducer:{
+    reducer: {
         todos: todoReducer,
         auth: authReducer,
+        users: usersReducer,
+        comments: commentsReducer,
+        activity: activityReducer,
+        teams: teamsReducer,
     }
 });
 

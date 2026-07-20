@@ -1,9 +1,19 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, ForeignKey
+from sqlalchemy import Column, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
+
+
+class TeamModel(Base):
+    __tablename__ = "teams"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    createdAt = Column(String, default=lambda: datetime.now(timezone.utc).isoformat())
+
+    members = relationship("UserModel", back_populates="team")
 
 
 class UserModel(Base):
@@ -13,9 +23,15 @@ class UserModel(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
-    createdAt = Column(String, default=lambda: datetime.utcnow().isoformat())
+    role = Column(String, nullable=False, default="User")
+    createdAt = Column(String, default=lambda: datetime.now(timezone.utc).isoformat())
+    team_id = Column(String, ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
 
-    tasks = relationship("TaskModel", back_populates="user")
+    team = relationship("TeamModel", back_populates="members")
+    tasks = relationship("TaskModel", back_populates="user", foreign_keys="TaskModel.user_id")
+    assigned_tasks = relationship("TaskModel", back_populates="assignee", foreign_keys="TaskModel.assigned_to")
+    comments = relationship("CommentModel", back_populates="user")
+    activity_logs = relationship("ActivityLogModel", back_populates="user")
 
 
 class TaskModel(Base):
@@ -27,7 +43,38 @@ class TaskModel(Base):
     status = Column(String, default="Pending")
     priority = Column(String, default="Medium")
     dueDate = Column(String, nullable=True)
-    createdAt = Column(String, default=lambda: datetime.utcnow().isoformat())
+    createdAt = Column(String, default=lambda: datetime.now(timezone.utc).isoformat())
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    assigned_to = Column(String, ForeignKey("users.id"), nullable=True)
+
+    user = relationship("UserModel", back_populates="tasks", foreign_keys=[user_id])
+    assignee = relationship("UserModel", back_populates="assigned_tasks", foreign_keys=[assigned_to])
+    comments = relationship("CommentModel", back_populates="task", cascade="all, delete-orphan")
+    activity_logs = relationship("ActivityLogModel", back_populates="task", cascade="all, delete-orphan")
+
+
+class CommentModel(Base):
+    __tablename__ = "comments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    content = Column(Text, nullable=False)
+    createdAt = Column(String, default=lambda: datetime.now(timezone.utc).isoformat())
+    task_id = Column(String, ForeignKey("tasks.id"), nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
-    user = relationship("UserModel", back_populates="tasks")
+    task = relationship("TaskModel", back_populates="comments")
+    user = relationship("UserModel", back_populates="comments")
+
+
+class ActivityLogModel(Base):
+    __tablename__ = "activity_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    action = Column(String, nullable=False)
+    details = Column(Text, nullable=True)
+    createdAt = Column(String, default=lambda: datetime.now(timezone.utc).isoformat())
+    task_id = Column(String, ForeignKey("tasks.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+
+    task = relationship("TaskModel", back_populates="activity_logs")
+    user = relationship("UserModel", back_populates="activity_logs")

@@ -1,21 +1,30 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import type { AddTaskPayload, TaskStatus, TodoState, UpdateTaskPayload } from "../../types";
+import type { AddTaskPayload, TaskPriority, TaskStatus, TodoState, UpdateTaskPayload } from "../../types";
+import type { TaskQuery } from "../../services/api";
 import { api } from "../../services/api";
 
 
 const initialState: TodoState = {
     tasks: [],
-    statusFilter:'All',
-    searchQuery:'',
+    statusFilter: 'All',
+    priorityFilter: 'All',
+    searchQuery: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
     loading: false,
     error: null,
+    stats: null,
+    total: 0,
+    page: 1,
+    pages: 1,
 };
 
 export const fetchTasks = createAsyncThunk(
     'todos/fetchTasks',
-    async () => {
-        return await api.getTasks();
+    async (params?: TaskQuery) => {
+        const data = await api.getTasks(params ?? {});
+        return data;
     }
 );
 
@@ -42,6 +51,13 @@ export const deleteTaskAsync = createAsyncThunk(
     }
 );
 
+export const fetchTaskStats = createAsyncThunk(
+    'todos/fetchTaskStats',
+    async () => {
+        return await api.getTaskStats();
+    }
+);
+
 const todoSlice = createSlice({
   name: "todos",
   initialState,
@@ -49,9 +65,21 @@ const todoSlice = createSlice({
     setStatusFilter:(state,action:PayloadAction<TaskStatus | 'All'>)=>{
         state.statusFilter=action.payload
     },
+    setPriorityFilter:(state,action:PayloadAction<TaskPriority | 'All'>)=>{
+        state.priorityFilter=action.payload
+    },
     setSearchQuery:(state,action:PayloadAction<string>)=>{
         state.searchQuery=action.payload
-    }
+    },
+    setSortBy:(state,action:PayloadAction<string>)=>{
+        state.sortBy=action.payload
+    },
+    setSortOrder:(state,action:PayloadAction<string>)=>{
+        state.sortOrder=action.payload
+    },
+    setPage:(state,action:PayloadAction<number>)=>{
+        state.page=action.payload
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -61,7 +89,10 @@ const todoSlice = createSlice({
         })
         .addCase(fetchTasks.fulfilled, (state, action) => {
             state.loading = false;
-            state.tasks = action.payload;
+            state.tasks = action.payload.items;
+            state.total = action.payload.total;
+            state.page = action.payload.page;
+            state.pages = action.payload.pages;
         })
         .addCase(fetchTasks.rejected, (state, action) => {
             state.loading = false;
@@ -87,9 +118,12 @@ const todoSlice = createSlice({
         })
         .addCase(deleteTaskAsync.rejected, (state, action) => {
             state.error = action.error.message ?? 'Failed to delete task';
+        })
+        .addCase(fetchTaskStats.fulfilled, (state, action) => {
+            state.stats = action.payload;
         });
   },
 });
 
-export const { setSearchQuery, setStatusFilter } = todoSlice.actions;
+export const { setSearchQuery, setStatusFilter, setPriorityFilter, setSortBy, setSortOrder, setPage } = todoSlice.actions;
 export default todoSlice.reducer;

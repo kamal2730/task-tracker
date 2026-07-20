@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { Task, TaskStatus, TaskPriority } from '../types';
+import { STATUS_COLORS } from '../utils/constants';
 import ConfirmDialog from './ConfirmDialog';
 
 interface TaskItemProps {
@@ -10,22 +12,10 @@ interface TaskItemProps {
 
 const STATUS_ORDER: TaskStatus[] = ['Pending', 'In Progress', 'Done'];
 
-const STATUS_COLORS: Record<TaskStatus, string> = {
-  'Pending': '#ef4444',
-  'In Progress': '#f59e0b',
-  'Done': '#22c55e',
-};
-
 const NEXT_STATUS: Record<TaskStatus, TaskStatus> = {
   'Pending': 'In Progress',
   'In Progress': 'Done',
   'Done': 'Pending',
-};
-
-const PRIORITY_COLORS: Record<TaskPriority, string> = {
-  'Low': '#22c55e',
-  'Medium': '#eab308',
-  'High': '#ef4444',
 };
 
 const NEXT_PRIORITY: Record<TaskPriority, TaskPriority> = {
@@ -49,7 +39,7 @@ export default function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
       setEditPriority(task.priority);
       setEditDueDate(task.dueDate || '');
     }
-  }, [isExpanded]);
+  }, [isExpanded, task.title, task.description, task.priority, task.dueDate]);
 
   const handleSave = () => {
     if (!editTitle.trim()) return;
@@ -82,14 +72,26 @@ export default function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
         tabIndex={0}
       >
         <span
-          className="priority-badge"
-          style={{ backgroundColor: `${PRIORITY_COLORS[task.priority]}20`, color: PRIORITY_COLORS[task.priority], cursor: 'pointer' }}
+          className={`priority-badge priority-${task.priority.toLowerCase()}`}
+          style={{ cursor: 'pointer' }}
           onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { priority: NEXT_PRIORITY[task.priority] }); }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onUpdate(task.id, { priority: NEXT_PRIORITY[task.priority] }); } }}
         >{task.priority}</span>
-        <span className="task-title">{task.title}</span>
+        <Link
+          to={`/tasks/${task.id}`}
+          className="task-title"
+          onClick={(e) => e.stopPropagation()}
+        >{task.title}</Link>
+        <Link
+          to={`/users/${task.assigned_to || task.user_id}`}
+          className="task-assignee-avatar"
+          onClick={(e) => e.stopPropagation()}
+          title={task.assigned_to_name || task.user_name}
+        >
+          {(task.assigned_to_name || task.user_name).charAt(0).toUpperCase()}
+        </Link>
         {task.dueDate && <span className="due-date">{task.dueDate}</span>}
         <span
           className="status-circle"

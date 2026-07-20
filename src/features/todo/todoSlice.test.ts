@@ -12,9 +12,16 @@ import type { TodoState, Task } from '../../types'
 const initialState: TodoState = {
   tasks: [],
   statusFilter: 'All',
+  priorityFilter: 'All',
   searchQuery: '',
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
   loading: false,
   error: null,
+  stats: null,
+  total: 0,
+  page: 1,
+  pages: 1,
 }
 
 const sampleTask: Task = {
@@ -24,6 +31,8 @@ const sampleTask: Task = {
   status: 'Pending',
   priority: 'Medium',
   createdAt: '2026-01-01T00:00:00Z',
+  user_id: 'u1',
+  user_name: 'Test User',
 }
 
 describe('todoSlice reducers', () => {
@@ -52,7 +61,8 @@ describe('todoSlice thunk lifecycle', () => {
 
   it('should populate tasks on fetchTasks.fulfilled', () => {
     const tasks = [sampleTask]
-    const state = todoReducer(initialState, fetchTasks.fulfilled(tasks, '', undefined))
+    const payload = { items: tasks, total: 1, page: 1, pages: 1 }
+    const state = todoReducer(initialState, fetchTasks.fulfilled(payload, '', undefined))
     expect(state.loading).toBe(false)
     expect(state.tasks).toEqual(tasks)
   })
