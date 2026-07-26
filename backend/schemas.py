@@ -139,3 +139,22 @@ class ActivityLogResponse(BaseModel):
     createdAt: str
     user_id: str
     user_name: str
+
+
+class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    recipient_id: str
+    task_id: Optional[str] = None
+    type: str
+    title: str
+    message: str
+    is_read: bool
+    createdAt: str
+
+
+class PaginatedNotificationsResponse(BaseModel):
+    items: list[NotificationResponse]
+    total: int
+    page: int
+    pages: int

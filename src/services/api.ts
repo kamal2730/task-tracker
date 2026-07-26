@@ -1,7 +1,7 @@
 import type {
   AddTaskPayload, Comment, ActivityLog,
   CreateUserPayload, LoginPayload, RegisterPayload, Task, TaskStats,
-  PaginatedTasks, User, UserWithStats, UserRole, Team,
+  PaginatedTasks, User, UserWithStats, UserRole, Team, PaginatedNotifications,
 } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -251,5 +251,26 @@ export const api = {
   // Activity
   getActivity(taskId: string): Promise<ActivityLog[]> {
     return fetchWithAuth<ActivityLog[]>(`${BASE_URL}/tasks/${taskId}/activity`);
+  },
+
+  // Notifications
+  getNotifications(page: number = 1, limit: number = 20): Promise<PaginatedNotifications> {
+    return fetchWithAuth<PaginatedNotifications>(`${BASE_URL}/notifications?page=${page}&limit=${limit}`);
+  },
+
+  getUnreadCount(): Promise<number> {
+    return fetchWithAuth<{ count: number }>(`${BASE_URL}/notifications/unread-count`).then((data) => data.count);
+  },
+
+  markNotificationRead(id: string): Promise<void> {
+    return fetchWithAuth<void>(`${BASE_URL}/notifications/${id}/read`, { method: "PATCH" });
+  },
+
+  markAllNotificationsRead(): Promise<void> {
+    return fetchWithAuth<void>(`${BASE_URL}/notifications/read-all`, { method: "PATCH" });
+  },
+
+  deleteNotification(id: string): Promise<void> {
+    return fetchWithAuth<void>(`${BASE_URL}/notifications/${id}`, { method: "DELETE" });
   },
 };

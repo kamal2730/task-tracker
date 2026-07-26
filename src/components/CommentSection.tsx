@@ -5,9 +5,11 @@ import { showToast } from "../utils/toast";
 
 interface Props {
   taskId: string;
+  lastUpdated?: number;
+  onDataChanged?: () => void;
 }
 
-export default function CommentSection({ taskId }: Props) {
+export default function CommentSection({ taskId, lastUpdated, onDataChanged }: Props) {
   const dispatch = useAppDispatch();
   const { comments, loading } = useAppSelector((s) => s.comments);
   const currentUser = useAppSelector((s) => s.auth.user);
@@ -16,7 +18,7 @@ export default function CommentSection({ taskId }: Props) {
 
   useEffect(() => {
     dispatch(fetchComments(taskId));
-  }, [taskId]);
+  }, [taskId, lastUpdated]);
 
   const handleSubmit = async () => {
     if (!content.trim()) return;
@@ -24,6 +26,7 @@ export default function CommentSection({ taskId }: Props) {
     try {
       await dispatch(addComment({ taskId, content: content.trim() })).unwrap();
       setContent("");
+      onDataChanged?.();
       showToast("Comment added", "success");
     } catch {
       showToast("Failed to add comment", "error");
@@ -35,6 +38,7 @@ export default function CommentSection({ taskId }: Props) {
   const handleDelete = async (commentId: string) => {
     try {
       await dispatch(deleteComment(commentId)).unwrap();
+      onDataChanged?.();
       showToast("Comment deleted", "success");
     } catch {
       showToast("Failed to delete comment", "error");

@@ -10,13 +10,13 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from database import engine, Base, SessionLocal, get_db
-from models import UserModel, TaskModel, CommentModel, ActivityLogModel, TeamModel
+from models import UserModel, TaskModel, CommentModel, ActivityLogModel, TeamModel, NotificationModel
 from schemas import (
     TaskCreate, TaskUpdate, TaskResponse, PaginatedTasksResponse, TaskStatsResponse,
     UserCreate, UserLogin, UserResponse, UserWithStatsResponse,
     UserCreateAdmin, UserUpdateAdmin, UserUpdateRole,
     TokenResponse, CommentCreate, CommentResponse, ActivityLogResponse,
-    TeamCreate, TeamResponse,
+    TeamCreate, TeamResponse, NotificationResponse, PaginatedNotificationsResponse,
 )
 from auth import (
     hash_password, verify_password,
@@ -51,7 +51,6 @@ _ensure_default_admin()
 
 
 def _seed_demo_data():
-    import os
     if os.getenv("SEED_DEMO_DATA", "NO").upper() != "YES":
         return
     db = SessionLocal()
@@ -100,10 +99,10 @@ def _seed_demo_data():
         tasks_data = [
             ("Fix login bug",     "Users cannot log in with special characters", "In Progress", "High",   "2026-07-25", users[0], users[3]),
             ("Deploy v2.1",       "Deploy the latest release to production",     "Pending",     "High",   "2026-07-30", users[0], None),
-            ("Design new logo",   "Create 3 mockups for the rebrand",            "Completed",   "Medium", "2026-07-15", users[1], users[4]),
+            ("Design new logo",   "Create 3 mockups for the rebrand",            "Done",        "Medium", "2026-07-15", users[1], users[4]),
             ("Q3 campaign plan",  "Outline strategy for Q3",                     "In Progress", "Medium", "2026-08-01", users[1], None),
             ("Refactor auth",     "Rewrite auth module with new library",        "Pending",     "Low",    "2026-08-10", users[0], users[7]),
-            ("Update docs",       "Update API documentation for new endpoints",  "Completed",   "Low",    "2026-07-10", users[2], None),
+            ("Update docs",       "Update API documentation for new endpoints",  "Done",        "Low",    "2026-07-10", users[2], None),
             ("Fix CI pipeline",   "Build is failing on main branch",             "Pending",     "High",   "2026-06-30", users[5], None),
             ("Add report export", "Export tasks to CSV and PDF",                 "In Progress", "Medium", "2026-08-05", users[1], users[10]),
             ("UI polish",         "Fix spacing and color inconsistencies",       "Pending",     "Low",    "2026-08-15", users[0], users[8]),
@@ -212,6 +211,31 @@ def log_activity(
     ))
 
 
+def create_notification(
+    db: Session,
+    recipient_id: str,
+    task_id: str | None,
+    notif_type: str,
+    title: str,
+    message: str,
+):
+    existing = db.query(NotificationModel).filter(
+        NotificationModel.recipient_id == recipient_id,
+        NotificationModel.task_id == task_id,
+        NotificationModel.type == notif_type,
+        NotificationModel.is_read == "false",
+    ).first()
+    if existing:
+        return
+    db.add(NotificationModel(
+        recipient_id=recipient_id,
+        task_id=task_id,
+        type=notif_type,
+        title=title,
+        message=message,
+    ))
+
+
 VALID_ROLES = {"Admin", "Manager", "User"}
 
 
@@ -240,7 +264,9 @@ def _base_task_query(current_user: UserModel, db: Session):
         )
     elif current_user.role == "Manager":
         if not current_user.team_id:
-            query = query.filter(sql_false())
+            query = query.filter(
+                (TaskModel.user_id == current_user.id) | (TaskModel.assigned_to == current_user.id)
+            )
         else:
             team_ids = [
                 uid for (uid,) in db.query(UserModel.id)
@@ -380,7 +406,7 @@ def logout(response: Response):
 @app.get("/users", response_model=list[UserWithStatsResponse])
 def get_users(
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(require_role("Admin")),
+    current_user: UserModel = Depends(require_role("Admin", "Manager")),
 ):
     users = db.query(UserModel).all()
     result = []
@@ -457,6 +483,8 @@ def delete_user(
     user = db.query(UserModel).filter(UserModel.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    db.query(TaskModel).filter(TaskModel.assigned_to == user_id).update({"assigned_to": None})
+    db.query(NotificationModel).filter(NotificationModel.recipient_id == user_id).delete()
     db.delete(user)
     db.commit()
 
@@ -477,6 +505,10 @@ def create_user(
             status_code=400,
             detail=f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}",
         )
+    if payload.team_id is not None:
+        team = db.query(TeamModel).filter(TeamModel.id == payload.team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
     user = UserModel(
         name=payload.name,
         email=payload.email,
@@ -725,6 +757,8 @@ def create_task(
     db.commit()
     db.refresh(task)
     log_activity(db, task.id, current_user.id, "task.created", f"Task '{task.title}' created")
+    if task.assigned_to and task.assigned_to != current_user.id:
+        create_notification(db, task.assigned_to, task.id, "TASK_CREATED", "Task Created", f"You have been assigned to Task: {task.title}.")
     db.commit()
     return _task_to_response(task)
 
@@ -747,6 +781,7 @@ def update_task(
         raise HTTPException(status_code=403, detail="Cannot update another user's task")
 
     update_data = payload.model_dump(exclude_unset=True)
+    old_status = task.status
     changed_fields = []
     for key, value in update_data.items():
         if getattr(task, key) != value:
@@ -761,7 +796,17 @@ def update_task(
             db, task.id, current_user.id, "task.updated",
             f"Fields changed: {'; '.join(changed_fields)}",
         )
-        db.commit()
+
+    if "status" in update_data and update_data["status"] != old_status:
+        new_status = update_data["status"]
+        notif_title = "Task Status Changed"
+        notif_msg = f"Task '{task.title}' status changed from {old_status} to {new_status}."
+        if task.user_id != current_user.id:
+            create_notification(db, task.user_id, task.id, "STATUS_CHANGED", notif_title, notif_msg)
+        if task.assigned_to and task.assigned_to != current_user.id and task.assigned_to != task.user_id:
+            create_notification(db, task.assigned_to, task.id, "STATUS_CHANGED", notif_title, notif_msg)
+
+    db.commit()
 
     return _task_to_response(task)
 
@@ -775,7 +820,8 @@ def assign_task(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_role("Admin", "Manager")),
 ):
-    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    query = _base_task_query(current_user, db)
+    task = query.filter(TaskModel.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     if not payload.assigned_to:
@@ -801,6 +847,8 @@ def assign_task(
         db, task.id, current_user.id, "task.assigned",
         f"Task assigned to {user.name} ({user.email})",
     )
+    if payload.assigned_to != current_user.id:
+        create_notification(db, payload.assigned_to, task.id, "TASK_ASSIGNED", "Task Assigned", f"You have been assigned to Task: {task.title}.")
     db.commit()
     return _task_to_response(task)
 
@@ -853,6 +901,12 @@ def create_comment(
     db.refresh(comment)
 
     log_activity(db, task_id, current_user.id, "comment.added", f"Comment added: {payload.content[:100]}")
+    notif_title = "Comment Added"
+    notif_msg = f"{current_user.name} added a new comment to '{task.title}'."
+    if task.user_id != current_user.id:
+        create_notification(db, task.user_id, task_id, "COMMENT_ADDED", notif_title, notif_msg)
+    if task.assigned_to and task.assigned_to != current_user.id and task.assigned_to != task.user_id:
+        create_notification(db, task.assigned_to, task_id, "COMMENT_ADDED", notif_title, notif_msg)
     db.commit()
 
     return CommentResponse(
@@ -943,3 +997,109 @@ def get_activity(
         )
         for log in logs
     ]
+
+
+# ─── Notification Routes ────────────────────────────────
+
+
+@app.get("/notifications/unread-count")
+@limiter.limit("100/minute")
+def get_unread_count(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    count = db.query(NotificationModel).filter(
+        NotificationModel.recipient_id == current_user.id,
+        NotificationModel.is_read == "false",
+    ).count()
+    return {"count": count}
+
+
+@app.get("/notifications", response_model=PaginatedNotificationsResponse)
+@limiter.limit("100/minute")
+def get_notifications(
+    request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    query = db.query(NotificationModel).filter(NotificationModel.recipient_id == current_user.id)
+    total = query.count()
+    pages = max(1, (total + limit - 1) // limit)
+    items = (
+        query.order_by(NotificationModel.createdAt.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+    return PaginatedNotificationsResponse(
+        items=[
+            NotificationResponse(
+                id=n.id,
+                recipient_id=n.recipient_id,
+                task_id=n.task_id,
+                type=n.type,
+                title=n.title,
+                message=n.message,
+                is_read=n.is_read == "true",
+                createdAt=n.createdAt,
+            )
+            for n in items
+        ],
+        total=total,
+        page=page,
+        pages=pages,
+    )
+
+
+@app.patch("/notifications/{notification_id}/read", status_code=200)
+@limiter.limit("100/minute")
+def mark_notification_read(
+    request: Request,
+    notification_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    notif = db.query(NotificationModel).filter(NotificationModel.id == notification_id).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    if notif.recipient_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Cannot modify another user's notification")
+    notif.is_read = "true"
+    db.commit()
+    return {"detail": "Notification marked as read"}
+
+
+@app.patch("/notifications/read-all", status_code=200)
+@limiter.limit("100/minute")
+def mark_all_notifications_read(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    db.query(NotificationModel).filter(
+        NotificationModel.recipient_id == current_user.id,
+        NotificationModel.is_read == "false",
+    ).update({"is_read": "true"})
+    db.commit()
+    return {"detail": "All notifications marked as read"}
+
+
+@app.delete("/notifications/{notification_id}", status_code=204)
+@limiter.limit("100/minute")
+def delete_notification(
+    request: Request,
+    notification_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    notif = db.query(NotificationModel).filter(NotificationModel.id == notification_id).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    if notif.recipient_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Cannot delete another user's notification")
+    db.delete(notif)
+    db.commit()
+    return

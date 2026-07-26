@@ -9,7 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 export default function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
-  const { teams } = useAppSelector((s) => s.teams);
+  const { teams, loading: teamsLoading } = useAppSelector((s) => s.teams);
   const { users } = useAppSelector((s) => s.users);
   const [confirmTarget, setConfirmTarget] = useState<{ userId: string; userName: string } | null>(null);
 
@@ -47,7 +47,8 @@ export default function TeamDetailPage() {
   };
 
   if (!team) {
-    return <div className="loading-spinner">Loading team...</div>;
+    if (teamsLoading) return <div className="loading-spinner">Loading team...</div>;
+    return <div className="error-banner">Team not found</div>;
   }
 
   return (

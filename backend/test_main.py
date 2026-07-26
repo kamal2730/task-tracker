@@ -337,7 +337,7 @@ class TestRBAC:
         resp = client.get("/users", headers={"Authorization": f"Bearer {user_token}"})
         assert resp.status_code == 403
 
-    def test_manager_cannot_list_users(self):
+    def test_manager_can_list_users(self):
         reg = register_user("mgr@test.com", "Manager", "pass123")
         db = TestingSessionLocal()
         user = db.query(UserModel).filter(UserModel.email == "mgr@test.com").first()
@@ -346,7 +346,7 @@ class TestRBAC:
         db.close()
         token = reg.json()["access_token"]
         resp = client.get("/users", headers={"Authorization": f"Bearer {token}"})
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
 
 # ─── Comments ──────────────────────────────────────────
@@ -647,7 +647,7 @@ class TestManagerTeamScoping:
         db.close()
 
         task = client.post("/tasks", json={"title": "Assign test"},
-                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+                           headers={"Authorization": f"Bearer {mgr_token}"}).json()
         resp = client.patch(f"/tasks/{task['id']}/assign", json={"assigned_to": target_id},
                             headers={"Authorization": f"Bearer {mgr_token}"})
         assert resp.status_code == 200
@@ -673,7 +673,7 @@ class TestManagerTeamScoping:
         db.close()
 
         task = client.post("/tasks", json={"title": "Cross-team assign"},
-                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+                           headers={"Authorization": f"Bearer {mgr_token}"}).json()
         resp = client.patch(f"/tasks/{task['id']}/assign", json={"assigned_to": outsider_id},
                             headers={"Authorization": f"Bearer {mgr_token}"})
         assert resp.status_code == 400
@@ -720,3 +720,163 @@ class TestStats:
         assert data["byStatus"]["Done"] == 1
         assert data["byPriority"]["High"] == 1
         assert data["byPriority"]["Low"] == 1
+
+
+# ─── Notifications ───────────────────────────────────────
+
+
+class TestNotifications:
+    @pytest.fixture
+    def user_token(self):
+        reg = register_user()
+        return reg.json()["access_token"]
+
+    @pytest.fixture
+    def other_token(self):
+        reg = register_user(email="other@test.com", name="Other User")
+        return reg.json()["access_token"]
+
+    @pytest.fixture
+    def admin_token(self):
+        db = TestingSessionLocal()
+        admin = UserModel(
+            name="Admin", email="admin@test.com",
+            hashed_password="dummy", role="Admin",
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        db.close()
+        return create_access_token(admin.id)
+
+    def _get_id(self, token):
+        return client.get("/auth/profile", headers={"Authorization": f"Bearer {token}"}).json()["id"]
+
+    def test_notifications_on_task_create_with_assignee(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        client.post("/tasks", json={"title": "Assigned Task", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        resp = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"})
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["type"] == "TASK_CREATED"
+        assert data["items"][0]["task_id"] is not None
+
+    def test_notifications_on_task_assignment(self, admin_token, other_token):
+        task = client.post("/tasks", json={"title": "To Assign"},
+                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+        other_id = self._get_id(other_token)
+        client.patch(f"/tasks/{task['id']}/assign", json={"assigned_to": other_id},
+                     headers={"Authorization": f"Bearer {admin_token}"})
+        resp = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"})
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["type"] == "TASK_ASSIGNED"
+
+    def test_notifications_on_status_change(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        task = client.post("/tasks", json={"title": "Status Task", "assigned_to": other_id},
+                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+        client.put(f"/tasks/{task['id']}", json={"status": "Done"},
+                   headers={"Authorization": f"Bearer {admin_token}"})
+        resp_creator = client.get("/notifications", headers={"Authorization": f"Bearer {admin_token}"})
+        resp_assignee = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"})
+        assert resp_creator.json()["total"] == 0
+        types = [n["type"] for n in resp_assignee.json()["items"]]
+        assert "STATUS_CHANGED" in types
+
+    def test_notifications_on_comment(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        task = client.post("/tasks", json={"title": "Comment Task", "assigned_to": other_id},
+                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+        client.post(f"/tasks/{task['id']}/comments", json={"content": "Nice work"},
+                    headers={"Authorization": f"Bearer {other_token}"})
+        resp_creator = client.get("/notifications", headers={"Authorization": f"Bearer {admin_token}"})
+        assert resp_creator.json()["total"] == 1
+        assert resp_creator.json()["items"][0]["type"] == "COMMENT_ADDED"
+        assert "Other User" in resp_creator.json()["items"][0]["message"]
+
+    def test_no_self_notification_on_comment(self, admin_token):
+        task = client.post("/tasks", json={"title": "Self Comment"},
+                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+        client.post(f"/tasks/{task['id']}/comments", json={"content": "Self note"},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        resp = client.get("/notifications", headers={"Authorization": f"Bearer {admin_token}"})
+        assert resp.json()["total"] == 0
+
+    def test_no_duplicate_notifications(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        task = client.post("/tasks", json={"title": "Dup Task"},
+                           headers={"Authorization": f"Bearer {admin_token}"}).json()
+        client.patch(f"/tasks/{task['id']}/assign", json={"assigned_to": other_id},
+                     headers={"Authorization": f"Bearer {admin_token}"})
+        client.patch(f"/tasks/{task['id']}/assign", json={"assigned_to": other_id},
+                     headers={"Authorization": f"Bearer {admin_token}"})
+        resp = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"})
+        assert resp.json()["total"] == 1
+
+    def test_get_notifications_only_own(self, admin_token, other_token):
+        client.post("/tasks", json={"title": "My Task"},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        resp = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"})
+        assert resp.json()["total"] == 0
+
+    def test_mark_notification_read(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        client.post("/tasks", json={"title": "Read Task", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        notifs = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        notif_id = notifs["items"][0]["id"]
+        resp = client.patch(f"/notifications/{notif_id}/read",
+                            headers={"Authorization": f"Bearer {other_token}"})
+        assert resp.status_code == 200
+        notifs_after = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        assert notifs_after["items"][0]["is_read"] is True
+
+    def test_cannot_mark_others_read(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        client.post("/tasks", json={"title": "Other Read", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        notifs = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        notif_id = notifs["items"][0]["id"]
+        resp = client.patch(f"/notifications/{notif_id}/read",
+                            headers={"Authorization": f"Bearer {admin_token}"})
+        assert resp.status_code == 403
+
+    def test_mark_all_read(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        client.post("/tasks", json={"title": "All Read 1", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        client.post("/tasks", json={"title": "All Read 2", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        resp = client.patch("/notifications/read-all",
+                            headers={"Authorization": f"Bearer {other_token}"})
+        assert resp.status_code == 200
+        notifs = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        assert all(n["is_read"] is True for n in notifs["items"])
+
+    def test_delete_notification(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        client.post("/tasks", json={"title": "Del Notif", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        notifs = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        notif_id = notifs["items"][0]["id"]
+        resp = client.delete(f"/notifications/{notif_id}",
+                             headers={"Authorization": f"Bearer {other_token}"})
+        assert resp.status_code == 204
+        notifs_after = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        assert notifs_after["total"] == 0
+
+    def test_cannot_delete_others_notification(self, admin_token, other_token):
+        other_id = self._get_id(other_token)
+        client.post("/tasks", json={"title": "Del Other", "assigned_to": other_id},
+                    headers={"Authorization": f"Bearer {admin_token}"})
+        notifs = client.get("/notifications", headers={"Authorization": f"Bearer {other_token}"}).json()
+        notif_id = notifs["items"][0]["id"]
+        resp = client.delete(f"/notifications/{notif_id}",
+                             headers={"Authorization": f"Bearer {admin_token}"})
+        assert resp.status_code == 403
+
+    def test_unauthenticated_notifications(self):
+        resp = client.get("/notifications")
+        assert resp.status_code == 401

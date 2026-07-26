@@ -49,7 +49,7 @@ export default function TaskListPage() {
 
   useEffect(() => {
     const overrides: Record<string, string | number | undefined> = {};
-    if (taskView === "my" && role === "Manager" && user?.id) {
+    if (taskView === "my" && user?.id) {
       overrides.assigned_to = user.id;
     }
     fetchWithFilters(overrides);
@@ -58,7 +58,7 @@ export default function TaskListPage() {
   const goToPage = (p: number) => {
     dispatch(setPage(p));
     const overrides: Record<string, string | number | undefined> = { page: p };
-    if (taskView === "my" && role === "Manager" && user?.id) {
+    if (taskView === "my" && user?.id) {
       overrides.assigned_to = user.id;
     }
     fetchWithFilters(overrides);

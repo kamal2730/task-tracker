@@ -32,6 +32,7 @@ class UserModel(Base):
     assigned_tasks = relationship("TaskModel", back_populates="assignee", foreign_keys="TaskModel.assigned_to")
     comments = relationship("CommentModel", back_populates="user")
     activity_logs = relationship("ActivityLogModel", back_populates="user")
+    notifications = relationship("NotificationModel", back_populates="recipient", foreign_keys="NotificationModel.recipient_id")
 
 
 class TaskModel(Base):
@@ -51,6 +52,7 @@ class TaskModel(Base):
     assignee = relationship("UserModel", back_populates="assigned_tasks", foreign_keys=[assigned_to])
     comments = relationship("CommentModel", back_populates="task", cascade="all, delete-orphan")
     activity_logs = relationship("ActivityLogModel", back_populates="task", cascade="all, delete-orphan")
+    notifications = relationship("NotificationModel", back_populates="task", cascade="all, delete-orphan")
 
 
 class CommentModel(Base):
@@ -78,3 +80,19 @@ class ActivityLogModel(Base):
 
     task = relationship("TaskModel", back_populates="activity_logs")
     user = relationship("UserModel", back_populates="activity_logs")
+
+
+class NotificationModel(Base):
+    __tablename__ = "notifications"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recipient_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(String, default="false")
+    createdAt = Column(String, default=lambda: datetime.now(timezone.utc).isoformat())
+
+    recipient = relationship("UserModel", back_populates="notifications", foreign_keys=[recipient_id])
+    task = relationship("TaskModel", back_populates="notifications", foreign_keys=[task_id])

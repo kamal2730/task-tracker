@@ -4,6 +4,7 @@ import { fetchActivity } from "../features/activity/activitySlice";
 
 interface Props {
   taskId: string;
+  lastUpdated?: number;
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -15,13 +16,13 @@ const ACTION_LABELS: Record<string, string> = {
   "comment.deleted": "Comment deleted",
 };
 
-export default function ActivityTimeline({ taskId }: Props) {
+export default function ActivityTimeline({ taskId, lastUpdated }: Props) {
   const dispatch = useAppDispatch();
   const { logs, loading } = useAppSelector((s) => s.activity);
 
   useEffect(() => {
     dispatch(fetchActivity(taskId));
-  }, [taskId]);
+  }, [taskId, lastUpdated]);
 
   return (
     <div className="activity-timeline">

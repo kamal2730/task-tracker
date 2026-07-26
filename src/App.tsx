@@ -7,6 +7,7 @@ import AuthModal from "./components/AuthModal";
 import UserMenu from "./components/UserMenu";
 import ThemeToggle from "./components/ThemeToggle";
 import Sidebar from "./components/Sidebar";
+import NotificationBell from "./components/NotificationBell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ToastContainer from "./components/ToastContainer";
 import DashboardPage from "./pages/DashboardPage";
@@ -60,6 +61,7 @@ function AppShell() {
                   <UserMenu />
                 </div>
                 <div className="app-header-right">
+                  <NotificationBell />
                   <ThemeToggle
                     isDarkMode={isDarkMode}
                     onToggle={() => setIsDarkMode(!isDarkMode)}

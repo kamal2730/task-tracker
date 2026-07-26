@@ -151,3 +151,34 @@ export interface TeamsState {
   loading: boolean;
   error: string | null;
 }
+
+export type NotificationType = 'TASK_ASSIGNED' | 'COMMENT_ADDED' | 'STATUS_CHANGED' | 'TASK_CREATED';
+
+export interface Notification {
+  id: string;
+  recipient_id: string;
+  task_id: string | null;
+  type: NotificationType;
+  title: string;
+  message: string;
+  is_read: boolean;
+  createdAt: string;
+}
+
+export interface PaginatedNotifications {
+  items: Notification[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface NotificationsState {
+  notifications: Notification[];
+  total: number;
+  unreadCount: number;
+  page: number;
+  pages: number;
+  loading: boolean;
+  error: string | null;
+  panelOpen: boolean;
+}

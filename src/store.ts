@@ -5,6 +5,7 @@ import usersReducer from "./features/users/usersSlice";
 import commentsReducer from "./features/comments/commentsSlice";
 import activityReducer from "./features/activity/activitySlice";
 import teamsReducer from "./features/teams/teamsSlice";
+import notificationsReducer from "./features/notifications/notificationsSlice";
 import { useDispatch, useSelector } from "react-redux";
 
 
@@ -16,6 +17,7 @@ const store = configureStore({
         comments: commentsReducer,
         activity: activityReducer,
         teams: teamsReducer,
+        notifications: notificationsReducer,
     }
 });
 

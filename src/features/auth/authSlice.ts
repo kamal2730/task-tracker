@@ -3,8 +3,13 @@ import type { AuthState, LoginPayload, RegisterPayload } from "../../types";
 import { api, setAccessToken } from "../../services/api";
 
 function loadFromStorage() {
-  const user = localStorage.getItem("task_tracker_user");
-  return { user: user ? JSON.parse(user) : null };
+  try {
+    const user = localStorage.getItem("task_tracker_user");
+    return { user: user ? JSON.parse(user) : null };
+  } catch {
+    localStorage.removeItem("task_tracker_user");
+    return { user: null };
+  }
 }
 
 const { user } = loadFromStorage();

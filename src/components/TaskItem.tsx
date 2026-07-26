@@ -92,7 +92,7 @@ export default function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
         >
           {(task.assigned_to_name || task.user_name).charAt(0).toUpperCase()}
         </Link>
-        {task.dueDate && <span className="due-date">{task.dueDate}</span>}
+        {task.dueDate && <span className="due-date">{new Date(task.dueDate).toLocaleDateString()}</span>}
         <span
           className="status-circle"
           style={{ backgroundColor: STATUS_COLORS[task.status] }}

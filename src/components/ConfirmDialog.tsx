@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -19,6 +21,15 @@ export default function ConfirmDialog({
   confirmLabel = "Delete",
   confirmLoadingLabel = "Deleting...",
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, onCancel]);
+
   if (!open) return null;
 
   return (

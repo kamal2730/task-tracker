@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../store";
 import { fetchTasks } from "../features/todo/todoSlice";
 import { api } from "../services/api";
@@ -14,19 +14,24 @@ export default function TaskDetailPage() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const localTask = useAppSelector((s) => s.todos.tasks.find((t) => t.id === id));
+  const location = useLocation();
 
   const [task, setTask] = useState<Task | null>(localTask ?? null);
   const [loading, setLoading] = useState(!localTask);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [assigning, setAssigning] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(0);
 
   useEffect(() => {
     if (!id) return;
-    if (!localTask) {
-      api.getTask(id).then(setTask).catch(() => setError("Task not found")).finally(() => setLoading(false));
-    }
-  }, [id]);
+    setLoading(true);
+    setError(null);
+    api.getTask(id)
+      .then(setTask)
+      .catch(() => setError("Task not found"))
+      .finally(() => setLoading(false));
+  }, [id, location.key]);
 
   useEffect(() => {
     if (user?.role === "Admin" || user?.role === "Manager") {
@@ -45,6 +50,7 @@ export default function TaskDetailPage() {
       const updated = await api.updateTask(task.id, { status: status as Task["status"] });
       setTask(updated);
       dispatch(fetchTasks());
+      setLastUpdated(Date.now());
       showToast("Status updated", "success");
     } catch {
       showToast("Failed to update status", "error");
@@ -58,6 +64,7 @@ export default function TaskDetailPage() {
       const updated = await api.assignTask(task.id, userId);
       setTask(updated);
       dispatch(fetchTasks());
+      setLastUpdated(Date.now());
       showToast("Task assigned", "success");
     } catch {
       showToast("Failed to assign task", "error");
@@ -134,8 +141,8 @@ export default function TaskDetailPage() {
       </div>
 
       <div className="task-detail-bottom">
-        <CommentSection taskId={task.id} />
-        <ActivityTimeline taskId={task.id} />
+        <CommentSection taskId={task.id} lastUpdated={lastUpdated} onDataChanged={() => setLastUpdated(Date.now())} />
+        <ActivityTimeline taskId={task.id} lastUpdated={lastUpdated} />
       </div>
     </div>
   );

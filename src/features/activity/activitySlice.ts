@@ -24,6 +24,7 @@ const activitySlice = createSlice({
       .addCase(fetchActivity.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.logs = [];
       })
       .addCase(fetchActivity.fulfilled, (state, action) => {
         state.loading = false;

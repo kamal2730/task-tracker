@@ -82,6 +82,7 @@ function renderPage(userRole: UserRole, teamId?: string) {
 describe('TaskDetailPage assignment', () => {
   it('shows assign dropdown for Admin', async () => {
     const { api } = await import('../services/api')
+    vi.mocked(api.getTask).mockResolvedValue(mockTask)
     vi.mocked(api.getUsers).mockResolvedValue(mockUsers)
 
     renderPage('Admin')
@@ -95,6 +96,7 @@ describe('TaskDetailPage assignment', () => {
 
   it('shows assign dropdown for Manager', async () => {
     const { api } = await import('../services/api')
+    vi.mocked(api.getTask).mockResolvedValue(mockTask)
     vi.mocked(api.getUsers).mockResolvedValue(mockUsers)
 
     renderPage('Manager', 'team1')
@@ -103,10 +105,13 @@ describe('TaskDetailPage assignment', () => {
     expect(screen.getByRole('combobox')).toBeInTheDocument()
   })
 
-  it('hides assign dropdown for regular User', () => {
+  it('hides assign dropdown for regular User', async () => {
+    const { api } = await import('../services/api')
+    vi.mocked(api.getTask).mockResolvedValue(mockTask)
+
     renderPage('User')
 
-    expect(screen.getByText('Test Task')).toBeInTheDocument()
+    expect(await screen.findByText('Test Task')).toBeInTheDocument()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     expect(screen.getByText('Unassigned')).toBeInTheDocument()
   })
